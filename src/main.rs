@@ -100,16 +100,240 @@ impl GameSpyDatabase {
 
         let enabled = match response {
             None => return Ok(false),
-            Some(obj) => obj
+            Some(obj) => obj,
         };
 
         match enabled.get("enabled") {
             None => return Ok(false),
-            Some(bool) => return match bool  {
-                Value::True => Ok(true),
-                _ => Ok(false)
+            Some(bool) => {
+                return match bool {
+                    Value::True => Ok(true),
+                    _ => Ok(false),
+                }
             }
         };
+    }
+
+    async fn check_profile_exists(&self, profileid: &str) -> Result<bool> {
+        let sql = "SELECT count() as count FROM users WHERE profileid = $profileid";
+        let vars: BTreeMap<String, Value> = [("profileid".into(), profileid.into())].into();
+
+        let responses = self
+            .datastore
+            .execute(sql, &self.session, Some(vars), false)
+            .await?;
+
+        let response = GameSpyDatabase::into_iter_object(responses)?
+            .next()
+            .transpose()?
+            .and_then(|obj| obj.get("count").map(|count| count.to_number().as_int()));
+
+        match response {
+            None => return Ok(false),
+            Some(0) => return Ok(false),
+            Some(_) => return Ok(true),
+        };
+    }
+
+    async fn get_profile_from_profileid(&self, profileid: &str) -> Result<Object> {
+        let sql = "SELECT count() as count FROM users WHERE profileid = $profileid";
+        let vars: BTreeMap<String, Value> = [("profileid".into(), profileid.into())].into();
+
+        let responses = self
+            .datastore
+            .execute(sql, &self.session, Some(vars), false)
+            .await?;
+
+        let response = GameSpyDatabase::into_iter_object(responses)?
+            .next()
+            .transpose()?;
+
+        match response {
+            Some(obj) => return Ok(obj),
+            None => return Err(anyhow!("Could not get object from db.")),
+        }
+    }
+
+    async fn import_user(
+        &self,
+        profileid: &str,
+        firstname: &str,
+        lastname: &str,
+        email: &str,
+        uniquenick: &str,
+        gsbrcd: &str,
+        console: &str,
+        gameid: &str,
+    ) -> Result<i64> {
+        if !self.check_profile_exists(profileid).await? {
+            let pid = "11";
+            let lon = 0.000000;
+            let lat = 0.000000;
+            let loc = "";
+            let stat = "";
+            let partnerid = "";
+            let enabled = true;
+            let zipcode = "02120";
+            let aim = "";
+            let userid = "";
+            let password = "";
+            let csnum = "";
+            let cfc = "";
+            let bssid = "";
+            let devname = "";
+            let birth = "";
+
+            let sql = "CREATE users CONTENT $data RETURN profileid";
+
+            let data: BTreeMap<String, Value> = [
+                ("profileid".into(), profileid.into()),
+                ("userid".into(), userid.into()),
+                ("password".into(), password.into()),
+                ("gsbrcd".into(), gsbrcd.into()),
+                ("email".into(), email.into()),
+                ("uniquenick".into(), uniquenick.into()),
+                ("pid".into(), pid.into()),
+                ("lon".into(), lon.into()),
+                ("lat".into(), lat.into()),
+                ("loc".into(), loc.into()),
+                ("firstname".into(), firstname.into()),
+                ("lastname".into(), lastname.into()),
+                ("stat".into(), stat.into()),
+                ("partnerid".into(), partnerid.into()),
+                ("console".into(), console.into()),
+                ("csnum".into(), csnum.into()),
+                ("cfc".into(), cfc.into()),
+                ("bssid".into(), bssid.into()),
+                ("devname".into(), devname.into()),
+                ("birth".into(), birth.into()),
+                ("gameid".into(), gameid.into()),
+                ("enabled".into(), enabled.into()),
+                ("zipcode".into(), zipcode.into()),
+                ("aim".into(), aim.into()),
+            ]
+            .into();
+
+            let vars: BTreeMap<String, Value> = [("data".into(), data.into())].into();
+
+            let responses = self
+                .datastore
+                .execute(sql, &self.session, Some(vars), false)
+                .await?;
+
+            let response = GameSpyDatabase::into_iter_object(responses)?
+                .next()
+                .transpose()?
+                .and_then(|obj| {
+                    obj.get("profileid")
+                        .map(|profid| profid.to_number().as_int())
+                });
+
+            match response {
+                Some(id) => return Ok(id),
+                None => return Err(anyhow!("Could not create user.")),
+            };
+        }
+        return Err(anyhow!("Could not create user."));
+    }
+
+    async fn create_user(
+        &self,
+        userid: &str,
+        password: &str,
+        email: &str,
+        uniquenick: &str,
+        gsbrcd: &str,
+        console: &str,
+        csnum: &str,
+        cfc: &str,
+        bssid: &str,
+        devname: &str,
+        birth: &str,
+        gameid: &str,
+        macadr: &str,
+    ) -> Result<i64> {
+        if !self.check_user_exists(userid, gsbrcd).await? {
+            let profileid = self.get_next_free_profileid().await?;
+            let pid = "11";
+            let lon = 0.000000;
+            let lat = 0.000000;
+            let loc = "";
+            let firstname = "";
+            let lastname = "";
+            let stat = "";
+            let partnerid = "";
+            let enabled = true;
+            let zipcode = "02120";
+            let aim = "";
+
+            let sql = "CREATE users CONTENT $data RETURN profileid";
+
+            let data: BTreeMap<String, Value> = [
+                ("profileid".into(), profileid.into()),
+                ("userid".into(), userid.into()),
+                ("password".into(), password.into()),
+                ("gsbrcd".into(), gsbrcd.into()),
+                ("email".into(), email.into()),
+                ("uniquenick".into(), uniquenick.into()),
+                ("pid".into(), pid.into()),
+                ("lon".into(), lon.into()),
+                ("lat".into(), lat.into()),
+                ("loc".into(), loc.into()),
+                ("firstname".into(), firstname.into()),
+                ("lastname".into(), lastname.into()),
+                ("stat".into(), stat.into()),
+                ("partnerid".into(), partnerid.into()),
+                ("console".into(), console.into()),
+                ("csnum".into(), csnum.into()),
+                ("cfc".into(), cfc.into()),
+                ("bssid".into(), bssid.into()),
+                ("devname".into(), devname.into()),
+                ("birth".into(), birth.into()),
+                ("gameid".into(), gameid.into()),
+                ("enabled".into(), enabled.into()),
+                ("zipcode".into(), zipcode.into()),
+                ("aim".into(), aim.into()),
+            ]
+            .into();
+
+            let vars: BTreeMap<String, Value> = [("data".into(), data.into())].into();
+
+            let responses = self
+                .datastore
+                .execute(sql, &self.session, Some(vars), false)
+                .await?;
+
+            println!("{:?}", responses);
+
+            let response = GameSpyDatabase::into_iter_object(responses)?
+                .next()
+                .transpose()?
+                .and_then(|obj| {
+                    obj.get("profileid")
+                        .map(|profid| profid.to_number().as_int())
+                });
+
+            println!("{:?}", response);
+
+            match response {
+                Some(id) => return Ok(id),
+                None => return Err(anyhow!("Could not create user.")),
+            };
+        }
+        return Err(anyhow!("Could not create user."));
+    }
+
+    async fn get_user_list(&self) -> Result<Vec<Object>> {
+        let sql = "SELECT * FROM users";
+
+        let responses = self
+            .datastore
+            .execute(sql, &self.session, None, false)
+            .await?;
+
+        let objects = GameSpyDatabase::into_iter_object(responses)?.collect();
+
+        return objects;
     }
 
     fn into_iter_object(responses: Vec<Response>) -> Result<impl Iterator<Item = Result<Object>>> {
@@ -159,9 +383,30 @@ CREATE users CONTENT {
         .execute(sql, &database.session, None, false)
         .await?;
 
-    let next_id = database.get_next_free_profileid().await?;
+    let id_1 = database
+        .create_user(
+            "userid",
+            "password",
+            "email@google.com",
+            "uniquenick",
+            "gsbrcd",
+            "console",
+            "csnum",
+            "cfc",
+            "bssid",
+            "devname",
+            "birth",
+            "gameid",
+            "macadr",
+        )
+        .await?;
 
+    println!("create_user result: {id_1}");
+
+    let next_id = database.get_next_free_profileid().await?;
     println!("{next_id}");
+
+    database.get_user_list().await?;
 
     Ok(())
 }
